@@ -46,9 +46,9 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
         eprintln!("{:02x?}", v);
         if mfg_id == [0x4c, 0x00, 0x02, 0x15] {
             match color_by_uuid(uuid) {
-                Ok(color) => {
+                Ok(c) => {
                     Ok( Beacon {
-                        color: color,
+                        color: c,
                         temperature: u16::from_be_bytes(temperature),
                         gravity: u16::from_be_bytes(gravity),
                     })
@@ -64,16 +64,13 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
 }
 
 pub fn log(v: Option<Vec<u8>>) {
-    match v {
-        Some(v) => {
-            match parse_beacon(v) {
-                Ok(tilt) => {
-                    let sg = tilt.gravity as f64 / 1000.0;
-                    println!("{} - {}: {}°F, SG{:.3}", Utc::now(), tilt.color.to_uppercase(), tilt.temperature, sg);
-                },
-                Err(e) => eprintln!("{}", e),
-            }
-        },
-        None => (),
+    if let Some(v) = v {
+        match parse_beacon(v) {
+            Ok(tilt) => {
+                let sg = f64::from(tilt.gravity) / 1000.0;
+                println!("{} - {}: {}\u{b0}F, SG{:.3}", Utc::now(), tilt.color.to_uppercase(), tilt.temperature, sg);
+            },
+            Err(e) => eprintln!("{}", e),
+        }
     }
 }

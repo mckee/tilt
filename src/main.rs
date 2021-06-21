@@ -3,7 +3,7 @@ extern crate rumble;
 use std::thread;
 use std::time::Duration;
 use rumble::bluez::manager::Manager;
-use rumble::api::*;
+use rumble::api::{Central, CentralEvent, Peripheral};
 
 mod tilt;
 
@@ -12,7 +12,7 @@ fn main() {
 
     // get the first bluetooth adapter
     let adapters = manager.adapters().unwrap();
-    let mut adapter = adapters.into_iter().nth(0).unwrap();
+    let mut adapter = adapters.into_iter().next().unwrap();
 
     eprintln!("{:?}", adapter);
 
