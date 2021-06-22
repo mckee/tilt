@@ -1,9 +1,9 @@
 extern crate rumble;
 
+use rumble::api::{Central, CentralEvent, Peripheral};
+use rumble::bluez::manager::Manager;
 use std::thread;
 use std::time::Duration;
-use rumble::bluez::manager::Manager;
-use rumble::api::{Central, CentralEvent, Peripheral};
 
 mod tilt;
 
@@ -31,7 +31,7 @@ fn main() {
             let p = clone.peripheral(addr).unwrap().properties();
             eprintln!("found device {:?}", addr);
             tilt::log(p.manufacturer_data);
-       }
+        }
         CentralEvent::DeviceUpdated(addr) => {
             let p = clone.peripheral(addr).unwrap().properties();
             eprintln!("updated device {:?}", addr);
@@ -39,10 +39,10 @@ fn main() {
         }
         _ => {
             eprintln!("{:?}", event);
-        },
+        }
     }));
 
-        central.start_scan().unwrap();
+    central.start_scan().unwrap();
     loop {
         thread::sleep(Duration::from_secs(3));
     }
