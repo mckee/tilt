@@ -1,9 +1,13 @@
 extern crate confy;
 extern crate rumble;
 
+use log::LevelFilter;
+use log::{debug, info};
 use rumble::api::{Central, CentralEvent, Peripheral};
 use rumble::bluez::manager::Manager;
 use serde::{Deserialize, Serialize};
+use simple_logger::SimpleLogger;
+use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 
@@ -20,7 +24,7 @@ struct Config {
 impl ::std::default::Default for Config {
     fn default() -> Self {
         Self {
-            log_level: "warn".into(),
+            log_level: "info".into(),
             mttr_broker: "mttr.local".into(),
             mttr_topic: "tilt".into(),
         }
@@ -29,7 +33,15 @@ impl ::std::default::Default for Config {
 
 fn main() -> Result<(), confy::ConfyError> {
     let cfg: Config = confy::load("tilt")?;
-    eprintln!("{:?}", cfg.log_level);
+
+    SimpleLogger::new()
+        .with_level(LevelFilter::from_str(&cfg.log_level).unwrap())
+        .init()
+        .unwrap();
+    info!("Using config:");
+    info!("log_level: {}", cfg.log_level);
+    info!("mttr_broker: {}", cfg.mttr_broker);
+    info!("mttr_topic: {}", cfg.mttr_topic);
 
     let manager = Manager::new().unwrap();
 
@@ -37,7 +49,7 @@ fn main() -> Result<(), confy::ConfyError> {
     let adapters = manager.adapters().unwrap();
     let mut adapter = adapters.into_iter().next().unwrap();
 
-    eprintln!("{:?}", adapter);
+    debug!("{:?}", adapter);
 
     // reset the adapter -- clears out any errant state
     adapter = manager.down(&adapter).unwrap();
@@ -52,16 +64,16 @@ fn main() -> Result<(), confy::ConfyError> {
     central.on_event(Box::new(move |event| match event {
         CentralEvent::DeviceDiscovered(addr) => {
             let p = clone.peripheral(addr).unwrap().properties();
-            eprintln!("found device {:?}", addr);
-            tilt::log(p.manufacturer_data);
+            debug!("found device {:?}", addr);
+            tilt::send(p.manufacturer_data);
         }
         CentralEvent::DeviceUpdated(addr) => {
             let p = clone.peripheral(addr).unwrap().properties();
-            eprintln!("updated device {:?}", addr);
-            tilt::log(p.manufacturer_data);
+            debug!("updated device {:?}", addr);
+            tilt::send(p.manufacturer_data);
         }
         _ => {
-            eprintln!("{:?}", event);
+            debug!("{:?}", event);
         }
     }));
 

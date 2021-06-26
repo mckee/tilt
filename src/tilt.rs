@@ -1,4 +1,4 @@
-use chrono::Utc;
+use log::{debug, info};
 
 pub const RED: [u8; 16] = [
     0xa4, 0x95, 0xbb, 0x10, 0xc5, 0xb1, 0x4b, 0x44, 0xb5, 0x12, 0x13, 0x70, 0xf0, 0x2d, 0x74, 0xde,
@@ -59,7 +59,7 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
         let mut gravity = [0; 2];
         gravity.copy_from_slice(&v[22..=23]);
 
-        eprintln!("{:02x?}", v);
+        debug!("{:02x?}", v);
         if mfg_id == [0x4c, 0x00, 0x02, 0x15] {
             match color_by_uuid(uuid) {
                 Ok(c) => Ok(Beacon {
@@ -79,20 +79,19 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
     }
 }
 
-pub fn log(v: Option<Vec<u8>>) {
+pub fn send(v: Option<Vec<u8>>) {
     if let Some(v) = v {
         match parse_beacon(v) {
             Ok(tilt) => {
                 let sg = f64::from(tilt.gravity) / 1000.0;
-                println!(
-                    "{} - {}: {}\u{b0}F, SG{:.3}",
-                    Utc::now(),
+                info!(
+                    "{}: {}\u{b0}F, SG{:.3}",
                     tilt.color.to_uppercase(),
                     tilt.temperature,
                     sg
                 );
             }
-            Err(e) => eprintln!("{}", e),
+            Err(e) => debug!("{}", e),
         }
     }
 }
