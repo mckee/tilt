@@ -1,4 +1,6 @@
 use log::{debug, info};
+use serde::{Deserialize, Serialize};
+use std::time::SystemTime;
 
 pub const RED: [u8; 16] = [
     0xa4, 0x95, 0xbb, 0x10, 0xc5, 0xb1, 0x4b, 0x44, 0xb5, 0x12, 0x13, 0x70, 0xf0, 0x2d, 0x74, 0xde,
@@ -25,10 +27,12 @@ pub const PINK: [u8; 16] = [
     0xa4, 0x95, 0xbb, 0x80, 0xc5, 0xb1, 0x4b, 0x44, 0xb5, 0x12, 0x13, 0x70, 0xf0, 0x2d, 0x74, 0xde,
 ];
 
+#[derive(Serialize, Deserialize)]
 struct Beacon {
     color: String,
     temperature: u16,
     gravity: u16,
+    ts: SystemTime,
 }
 
 fn color_by_uuid(uuid: [u8; 16]) -> Result<String, String> {
@@ -66,6 +70,7 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
                     color: c,
                     temperature: u16::from_be_bytes(temperature),
                     gravity: u16::from_be_bytes(gravity),
+                    ts: SystemTime::now(),
                 }),
                 Err(e) => Err(format!("parse error: {}", e)),
             }
@@ -90,6 +95,8 @@ pub fn send(v: Option<Vec<u8>>) {
                     tilt.temperature,
                     sg
                 );
+                let j = serde_json::to_string(&tilt).unwrap();
+                info!("{}", j);
             }
             Err(e) => debug!("{}", e),
         }
