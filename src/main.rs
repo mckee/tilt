@@ -5,8 +5,10 @@ use log::LevelFilter;
 use log::{debug, info};
 use rumble::api::{Central, CentralEvent, Peripheral};
 use rumble::bluez::manager::Manager;
+use rumqttc::{self, Client, MqttOptions, QoS};
 use serde::{Deserialize, Serialize};
 use simple_logger::SimpleLogger;
+use std::error::Error;
 use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
@@ -16,8 +18,10 @@ mod tilt;
 #[derive(Serialize, Deserialize)]
 struct Config {
     log_level: String,
-    mttr_broker: String,
-    mttr_topic: String,
+    mqtt_id: String,
+    mqtt_broker: String,
+    mqtt_port: u16,
+    mqtt_topic: String,
 }
 
 /// `Config` implements `Default`
@@ -25,13 +29,15 @@ impl ::std::default::Default for Config {
     fn default() -> Self {
         Self {
             log_level: "info".into(),
-            mttr_broker: "mttr.local".into(),
-            mttr_topic: "tilt".into(),
+            mqtt_id: "tilt-publisher".into(),
+            mqtt_broker: "mttr.local".into(),
+            mqtt_port: 1883_u16,
+            mqtt_topic: "tilt".into(),
         }
     }
 }
 
-fn main() -> Result<(), confy::ConfyError> {
+fn main() -> Result<(), Box<dyn Error>> {
     let cfg: Config = confy::load("tilt")?;
 
     SimpleLogger::new()
@@ -40,8 +46,10 @@ fn main() -> Result<(), confy::ConfyError> {
         .unwrap();
     info!("Using config:");
     info!("log_level: {}", cfg.log_level);
-    info!("mttr_broker: {}", cfg.mttr_broker);
-    info!("mttr_topic: {}", cfg.mttr_topic);
+    info!("mqtt_id: {}", cfg.mqtt_id);
+    info!("mqtt_broker: {}", cfg.mqtt_broker);
+    info!("mqtt_port: {}", cfg.mqtt_port);
+    info!("mqtt_topic: {}", cfg.mqtt_topic);
 
     let manager = Manager::new().unwrap();
 
@@ -60,17 +68,33 @@ fn main() -> Result<(), confy::ConfyError> {
     central.active(false);
     central.filter_duplicates(false);
 
+    // setup the mqtt publisher
+    let mut mqttoptions = MqttOptions::new(cfg.mqtt_id, cfg.mqtt_broker, cfg.mqtt_port);
+    mqttoptions.set_keep_alive(5);
+    let (mqtt, mut connection) = Client::new(mqttoptions, 10);
+
     let clone = central.clone();
+    let topic = cfg.mqtt_topic;
     central.on_event(Box::new(move |event| match event {
         CentralEvent::DeviceDiscovered(addr) => {
             let p = clone.peripheral(addr).unwrap().properties();
             debug!("found device {:?}", addr);
-            tilt::send(p.manufacturer_data);
+            let mut mqtt = mqtt.clone();
+            let topic = topic.clone();
+            match tilt::process(p.manufacturer_data) {
+                Ok(j) => mqtt.publish(topic, QoS::AtLeastOnce, false, j).unwrap(),
+                Err(e) => debug!("{}", e),
+            }
         }
         CentralEvent::DeviceUpdated(addr) => {
             let p = clone.peripheral(addr).unwrap().properties();
             debug!("updated device {:?}", addr);
-            tilt::send(p.manufacturer_data);
+            let mut mqtt = mqtt.clone();
+            let topic = topic.clone();
+            match tilt::process(p.manufacturer_data) {
+                Ok(j) => mqtt.publish(topic, QoS::AtLeastOnce, false, j).unwrap(),
+                Err(e) => debug!("{}", e),
+            }
         }
         _ => {
             debug!("{:?}", event);
@@ -79,6 +103,9 @@ fn main() -> Result<(), confy::ConfyError> {
 
     central.start_scan().unwrap();
     loop {
-        thread::sleep(Duration::from_secs(3));
+        thread::sleep(Duration::from_secs(1));
+        for notification in connection.iter() {
+            debug!("MQTT = {:?}", notification);
+        }
     }
 }

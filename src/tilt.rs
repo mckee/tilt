@@ -84,7 +84,7 @@ fn parse_beacon(v: Vec<u8>) -> Result<Beacon, String> {
     }
 }
 
-pub fn send(v: Option<Vec<u8>>) {
+pub fn process(v: Option<Vec<u8>>) -> Result<String, String> {
     if let Some(v) = v {
         match parse_beacon(v) {
             Ok(tilt) => {
@@ -95,10 +95,12 @@ pub fn send(v: Option<Vec<u8>>) {
                     tilt.temperature,
                     sg
                 );
-                let j = serde_json::to_string(&tilt).unwrap();
-                info!("{}", j);
+
+                Ok(serde_json::to_string(&tilt).unwrap())
             }
-            Err(e) => debug!("{}", e),
+            Err(e) => Err(e),
         }
+    } else {
+        Err(String::from("noop"))
     }
 }

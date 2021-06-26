@@ -9,7 +9,9 @@ edition = "2018"
 chrono = "0.4"
 confy = "0.4.0"
 log = "0.4.14"
+rumqttc = "0.8.0"
 rumble = { git = "https://github.com/mwylde/rumble" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.64"
 simple_logger = "1.11.0"
+tokio = { version = "1", features = ["full"] }
