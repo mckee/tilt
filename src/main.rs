@@ -1,13 +1,36 @@
+extern crate confy;
 extern crate rumble;
 
 use rumble::api::{Central, CentralEvent, Peripheral};
 use rumble::bluez::manager::Manager;
+use serde::{Deserialize, Serialize};
 use std::thread;
 use std::time::Duration;
 
 mod tilt;
 
-fn main() {
+#[derive(Serialize, Deserialize)]
+struct Config {
+    log_level: String,
+    mttr_broker: String,
+    mttr_topic: String,
+}
+
+/// `Config` implements `Default`
+impl ::std::default::Default for Config {
+    fn default() -> Self {
+        Self {
+            log_level: "warn".into(),
+            mttr_broker: "mttr.local".into(),
+            mttr_topic: "tilt".into(),
+        }
+    }
+}
+
+fn main() -> Result<(), confy::ConfyError> {
+    let cfg: Config = confy::load("tilt")?;
+    eprintln!("{:?}", cfg.log_level);
+
     let manager = Manager::new().unwrap();
 
     // get the first bluetooth adapter
